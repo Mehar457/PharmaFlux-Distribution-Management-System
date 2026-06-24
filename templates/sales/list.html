@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>💰 Sales</h3>
+    <a href="/sales/add/" class="btn btn-primary">+ Record Sale</a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-success">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-bordered table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Customer</th>
+                    <th>Total Price</th>
+                    <th>Payment</th>
+                    <th>Date</th>
+                    <th>Invoice</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sale in sales %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ sale.customer.name }}</td>
+                    <td>Rs. {{ sale.total_price }}</td>
+                    <td>{{ sale.payment_method }}</td>
+                    <td>{{ sale.sale_date }}</td>
+                    <td>
+                        <a href="/sales/invoice/{{ sale.id }}/"
+                           class="btn btn-sm btn-info">
+                           View Invoice
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No sales yet.
+                        <a href="/sales/add/">Record first sale</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

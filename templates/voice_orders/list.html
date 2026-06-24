@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between
+            align-items-center mb-3">
+    <h3>🎤 Voice Orders</h3>
+    <a href="/voice-orders/create/"
+       class="btn btn-primary">
+       + Process Voice Message
+    </a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-success
+            alert-dismissible fade show">
+    {{ message }}
+    <button type="button"
+            class="btn-close"
+            data-bs-dismiss="alert">
+    </button>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Pending Orders Alert -->
+{% for vo in voice_orders %}
+{% if vo.status == 'draft' %}
+<div class="alert alert-warning">
+    ⚠️ You have pending voice orders to confirm!
+</div>
+{% endif %}
+{% endfor %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-bordered
+                      table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Customer</th>
+                    <th>Message</th>
+                    <th>Medicines</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vo in voice_orders %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ vo.order.customer.name }}</td>
+                    <td>
+                        <small class="text-muted">
+                            {{ vo.voice_input|truncatechars:50 }}
+                        </small>
+                    </td>
+                    <td>
+                        {% for item in vo.order.items.all %}
+                        <small>
+                            {{ item.stock.medicine_name }}
+                            × {{ item.quantity }}
+                        </small><br>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        Rs. {{ vo.order.get_total }}
+                    </td>
+                    <td>
+                        {% if vo.status == 'draft' %}
+                        <span class="badge bg-warning text-dark">
+                            Pending
+                        </span>
+                        {% elif vo.status == 'confirmed' %}
+                        <span class="badge bg-success">
+                            Confirmed
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger">
+                            Cancelled
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small>
+                            {{ vo.created_at|date:"d M Y H:i" }}
+                        </small>
+                    </td>
+                    <td>
+                        {% if vo.status == 'draft' %}
+                        <a href="/voice-orders/confirm/{{ vo.id }}/"
+                           class="btn btn-sm btn-success"
+                           onclick="return confirm('Confirm this order?')">
+                           ✅ Confirm
+                        </a>
+                        <a href="/voice-orders/cancel/{{ vo.id }}/"
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('Cancel this order?')">
+                           ❌ Cancel
+                        </a>
+                        {% elif vo.status == 'confirmed' %}
+                        <a href="/sales/invoice/{{ vo.order.sale.id }}/"
+                           class="btn btn-sm btn-info">
+                           🧾 Invoice
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8"
+                        class="text-center text-muted py-4">
+                        No voice orders yet.
+                        <a href="/voice-orders/create/">
+                            Process first voice message
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

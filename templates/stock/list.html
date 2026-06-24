@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between
+            align-items-center mb-3">
+    <h3>💊 Stock List</h3>
+    <a href="/stock/add/"
+       class="btn btn-primary">
+       + Add Medicine
+    </a>
+</div>
+
+{% if low_stock %}
+<div class="alert alert-danger">
+    ⚠️ {{ low_stock.count }} medicines are low on stock!
+</div>
+{% endif %}
+
+{% if expiry_alert %}
+<div class="alert alert-warning">
+    ⚠️ {{ expiry_alert.count }} medicines expiring within 30 days!
+</div>
+{% endif %}
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-success">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<form method="GET" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="search"
+               class="form-control"
+               placeholder="Search medicine..."
+               value="{{ search }}">
+        <button class="btn btn-outline-secondary">
+            Search
+        </button>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-bordered table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Medicine</th>
+                    <th>Batch No</th>
+                    <th>Quantity</th>
+                    <th>Expiry Date</th>
+                    <th>Unit Price</th>
+                    <th>Reorder Level</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in stocks %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ stock.medicine_name }}</td>
+                    <td>{{ stock.batch_no }}</td>
+                    <td>
+                        {% if stock.quantity <= stock.reorder_level %}
+                        <span class="badge bg-danger">
+                            {{ stock.quantity }} LOW
+                        </span>
+                        {% else %}
+                        <span class="badge bg-success">
+                            {{ stock.quantity }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if stock.expiry_date <= today %}
+                        <span class="text-danger fw-bold">
+                            {{ stock.expiry_date }} EXPIRED
+                        </span>
+                        {% else %}
+                        {{ stock.expiry_date }}
+                        {% endif %}
+                    </td>
+                    <td>Rs. {{ stock.unit_price }}</td>
+                    <td>{{ stock.reorder_level }}</td>
+                    <td>
+                        <a href="/stock/edit/{{ stock.id }}/"
+                           class="btn btn-sm btn-warning">
+                           Edit
+                        </a>
+                        <a href="/stock/delete/{{ stock.id }}/"
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('Delete?')">
+                           Delete
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        No medicines found.
+                        <a href="/stock/add/">Add first medicine</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

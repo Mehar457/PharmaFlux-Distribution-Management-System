@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5>✏️ Edit Vendor</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Company Name</label>
+                        <input type="text" name="company_name" class="form-control"
+                               value="{{ vendor.company_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Contact</label>
+                        <input type="text" name="contact" class="form-control"
+                               value="{{ vendor.contact }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" name="email" class="form-control"
+                               value="{{ vendor.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Address</label>
+                        <textarea name="address" class="form-control" rows="2">{{ vendor.address }}</textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning">Update Vendor</button>
+                        <a href="/vendors/" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

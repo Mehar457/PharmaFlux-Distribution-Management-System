@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>🛒 Purchase History</h3>
+    <a href="/purchases/add/" class="btn btn-primary">+ Record Purchase</a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-success">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-bordered table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Medicine</th>
+                    <th>Vendor</th>
+                    <th>Quantity</th>
+                    <th>Purchase Price</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for purchase in purchases %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ purchase.stock.medicine_name }}</td>
+                    <td>{{ purchase.vendor.company_name }}</td>
+                    <td>{{ purchase.quantity }}</td>
+                    <td>Rs. {{ purchase.purchase_price }}</td>
+                    <td>{{ purchase.purchase_date }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No purchases yet.
+                        <a href="/purchases/add/">Record first purchase</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

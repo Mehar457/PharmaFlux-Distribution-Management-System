@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between 
+            align-items-center mb-4">
+    <h3>⚙️ Super Admin Dashboard</h3>
+    <a href="/superadmin/add-distributor/"
+       class="btn btn-primary">
+       + Add Distributor
+    </a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-success 
+            alert-dismissible fade show">
+    {{ message }}
+    <button type="button" 
+            class="btn-close"
+            data-bs-dismiss="alert">
+    </button>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card text-white"
+             style="background:#1a2035;">
+            <div class="card-body">
+                <h6>Total Distributors</h6>
+                <h2>{{ distributors.count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h6>Active Distributors</h6>
+                <h2>
+                    {{ distributors|length }}
+                </h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <h6>Suspended</h6>
+                <h2>0</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Distributors Table -->
+<div class="card">
+    <div class="card-header text-white"
+         style="background:#1a2035;">
+        <strong>📋 All Distributors</strong>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-bordered 
+                      table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dist in distributors %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <strong>{{ dist.name }}</strong>
+                    </td>
+                    <td>{{ dist.user.username }}</td>
+                    <td>{{ dist.user.email }}</td>
+                    <td>{{ dist.phone }}</td>
+                    <td>
+                        {% if dist.status == 'active' %}
+                        <span class="badge bg-success">
+                            ✅ Active
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger">
+                            ❌ Suspended
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if dist.status == 'active' %}
+                        <a href="/superadmin/suspend/{{ dist.id }}/"
+                           class="btn btn-sm btn-warning"
+                           onclick="return confirm(
+                           'Suspend {{ dist.name }}?')">
+                           Suspend
+                        </a>
+                        {% else %}
+                        <a href="/superadmin/activate/{{ dist.id }}/"
+                           class="btn btn-sm btn-success"
+                           onclick="return confirm(
+                           'Activate {{ dist.name }}?')">
+                           Activate
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7"
+                        class="text-center 
+                               text-muted py-4">
+                        No distributors yet.
+                        <a href="/superadmin/add-distributor/">
+                            Add first distributor
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

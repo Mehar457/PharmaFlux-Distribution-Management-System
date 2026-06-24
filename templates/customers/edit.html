@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5>✏️ Edit Customer</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Customer Name</label>
+                        <input type="text" name="name" class="form-control"
+                               value="{{ customer.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Type</label>
+                        <select name="type" class="form-control">
+                            <option value="Medical Store" {% if customer.type == 'Medical Store' %}selected{% endif %}>Medical Store</option>
+                            <option value="Hospital" {% if customer.type == 'Hospital' %}selected{% endif %}>Hospital</option>
+                            <option value="Clinic" {% if customer.type == 'Clinic' %}selected{% endif %}>Clinic</option>
+                            <option value="Pharmacy" {% if customer.type == 'Pharmacy' %}selected{% endif %}>Pharmacy</option>
+                            <option value="Other" {% if customer.type == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Contact</label>
+                            <input type="text" name="contact" class="form-control"
+                                   value="{{ customer.contact }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">WhatsApp</label>
+                            <input type="text" name="whatsapp_number" class="form-control"
+                                   value="{{ customer.whatsapp_number }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" name="email" class="form-control"
+                               value="{{ customer.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Address</label>
+                        <textarea name="address" class="form-control" rows="2">{{ customer.address }}</textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning">Update Customer</button>
+                        <a href="/customers/" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

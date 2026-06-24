@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>🏭 Vendors</h3>
+    <a href="/vendors/add/" class="btn btn-primary">+ Add Vendor</a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-success">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-bordered table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Company Name</th>
+                    <th>Contact</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vendor in vendors %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ vendor.company_name }}</strong></td>
+                    <td>{{ vendor.contact }}</td>
+                    <td>{{ vendor.email }}</td>
+                    <td>{{ vendor.address }}</td>
+                    <td>
+                        <a href="/vendors/edit/{{ vendor.id }}/"
+                           class="btn btn-sm btn-warning">Edit</a>
+                        <a href="/vendors/delete/{{ vendor.id }}/"
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('Delete this vendor?')">Delete</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No vendors yet.
+                        <a href="/vendors/add/">Add first vendor</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

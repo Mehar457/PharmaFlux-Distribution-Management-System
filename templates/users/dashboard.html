@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>Current Role:{{request.user.role}}</h4>
+<div class="row g-4 mb-4">
+
+    <!-- Total Stock -->
+    <div class="col-md-3">
+        <div class="card text-white"
+             style="background:#1a2035;">
+            <div class="card-body">
+                <h6>Total Medicines</h6>
+                <h2>{{ total_stock }}</h2>
+                <small>In Stock</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock -->
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <h6>Low Stock Alert</h6>
+                <h2>{{ low_stock }}</h2>
+                <small>Need Reorder</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiry Alert -->
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h6>Expiry Alert</h6>
+                <h2>{{ expiry_soon }}</h2>
+                <small>Expiring in 30 days</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profit -->
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h6>Net Profit</h6>
+                <h2>Rs. {{ profit }}</h2>
+                <small>Total</small>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Financial Summary -->
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <strong>Total Sales</strong>
+            </div>
+            <div class="card-body">
+                <h3 class="text-success">
+                    Rs. {{ total_sales }}
+                </h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <strong>Total Purchases</strong>
+            </div>
+            <div class="card-body">
+                <h3 class="text-danger">
+                    Rs. {{ total_purchases }}
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

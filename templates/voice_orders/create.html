@@ -6,16 +6,19 @@
         <div class="card">
             <div class="card-header text-white"
                  style="background:#1a2035;">
-                <h5>🎤 Process WhatsApp Voice Order</h5>
+                <h5>📝 Manual Order Entry</h5>
+                <small>
+                    Type customer message manually
+                    to create draft order
+                </small>
             </div>
             <div class="card-body">
 
-                <!-- How it works -->
                 <div class="alert alert-info mb-3">
-                    <strong>How it works:</strong><br>
-                    1. Customer sends WhatsApp message<br>
-                    2. Copy that message here<br>
-                    3. System will extract medicines automatically<br>
+                    <strong>ℹ️ How it works:</strong><br>
+                    1. Select customer<br>
+                    2. Type their order message<br>
+                    3. System extracts medicines automatically<br>
                     4. Review and confirm the order
                 </div>
 
@@ -43,7 +46,6 @@
                             {% for customer in customers %}
                             <option value="{{ customer.id }}">
                                 {{ customer.name }}
-                                ({{ customer.whatsapp_number }})
                             </option>
                             {% endfor %}
                         </select>
@@ -51,16 +53,17 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">
-                            Customer WhatsApp Message *
+                            Order Message *
                         </label>
                         <textarea name="message"
                                   class="form-control"
                                   rows="4"
-                                  placeholder="Example: Mujhe 100 Panadol aur 50 Disprin chahiye"
+                                  placeholder="Example: I want 100 Panadol and 50 Disprin"
                                   required>
                         </textarea>
                         <small class="text-muted">
-                            Write medicine names exactly as they are in stock
+                            Medicine names must match
+                            exactly as in stock
                         </small>
                     </div>
 

@@ -26,22 +26,22 @@ def get_distributor(request):
 @csrf_exempt
 def whatsapp_webhook(request):
 
-    # Meta verification (GET request)
     if request.method == 'GET':
         mode = request.GET.get('hub.mode', '')
-        verify_token = request.GET.get('hub.verify_token', '')
-        challenge = request.GET.get('hub.challenge', '')
-
+        verify_token = request.GET.get(
+            'hub.verify_token', ''
+        )
+        challenge = request.GET.get(
+            'hub.challenge', ''
+        )
         if mode == 'subscribe' and verify_token == 'pharmaflux123':
             return HttpResponse(challenge, status=200)
         return HttpResponse('Forbidden', status=403)
 
-    # Message receive karo (POST request)
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             print("=== WEBHOOK HIT ===")
-            print(data)
 
             entry = data['entry'][0]
             changes = entry['changes'][0]
@@ -52,27 +52,30 @@ def whatsapp_webhook(request):
                 from_number = message_data['from']
                 incoming_msg = None
 
-                # ── TEXT MESSAGE ──
                 if message_data['type'] == 'text':
                     incoming_msg = message_data['text']['body']
-                    print(f"TEXT RECEIVED: {incoming_msg}")
+                    print(f"TEXT: {incoming_msg}")
 
-                # ── VOICE / AUDIO MESSAGE ──
                 elif message_data['type'] == 'audio':
                     audio_id = message_data['audio']['id']
                     print(f"AUDIO RECEIVED, id: {audio_id}")
                     incoming_msg = process_voice_audio(audio_id)
-                    print(f"TRANSCRIBED TEXT: {incoming_msg}")
+                    print(f"TRANSCRIBED: {incoming_msg}")
 
                 if incoming_msg:
-                    medicines = extract_medicines(incoming_msg, 1)
+                    medicines = extract_medicines(
+                        incoming_msg, 1
+                    )
                     if medicines:
                         create_draft_order(
-                            incoming_msg, medicines, from_number, 1
+                            incoming_msg,
+                            medicines,
+                            from_number,
+                            1
                         )
                         print("DRAFT ORDER CREATED")
                     else:
-                        print("NO MEDICINES FOUND IN MESSAGE")
+                        print("NO MEDICINES FOUND")
                 else:
                     print("NO MESSAGE TEXT EXTRACTED")
 
@@ -84,52 +87,81 @@ def whatsapp_webhook(request):
     return HttpResponse('Method not allowed', status=405)
 
 
-# ── Voice Audio Ko Text Mein Convert Karo ────
+# ── Voice Audio Process ──────────────────────
 def process_voice_audio(audio_id):
-    """
-    Meta se audio file download karke
-    Whisper se text mein convert karta hai
-    """
     try:
+        import speech_recognition as sr
+        from pydub import AudioSegment
+        import os
+
         access_token = settings.META_ACCESS_TOKEN
 
-        # Step 1: Media URL nikalo Meta se
+        # Step 1: open Media URL 
         url_response = http_requests.get(
             f"https://graph.facebook.com/v19.0/{audio_id}",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            }
         )
+        print(f"URL Response: {url_response.json()}")
         media_url = url_response.json().get('url')
 
         if not media_url:
             print("Could not get media URL")
-            print(url_response.json())
             return None
 
-        # Step 2: Actual audio file download karo
+        # Step 2: For Audio download 
         audio_response = http_requests.get(
             media_url,
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            }
         )
 
-        audio_path = 'temp_voice.ogg'
-        with open(audio_path, 'wb') as f:
+        ogg_path = 'temp_voice.ogg'
+        wav_path = 'temp_voice.wav'
+
+        with open(ogg_path, 'wb') as f:
             f.write(audio_response.content)
 
-        # Step 3: Whisper se speech to text karo
-        import whisper
-        model = whisper.load_model("base")
-        result = model.transcribe(audio_path)
-        text = result["text"]
+        print(f"Audio downloaded: {len(audio_response.content)} bytes")
 
-        print(f"Whisper transcription: {text}")
+        # Step 3: OGG to WAV convert
+        audio_segment = AudioSegment.from_ogg(ogg_path)
+        audio_segment.export(wav_path, format='wav')
+        print("Converted to WAV")
+
+        # Step 4: Google Speech Recognition
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(wav_path) as source:
+            audio_data = recognizer.record(source)
+
+        text = recognizer.recognize_google(
+            audio_data,
+            language='en-US'
+        )
+        print(f"Recognized text: {text}")
+
+        # Cleanup
+        if os.path.exists(ogg_path):
+            os.remove(ogg_path)
+        if os.path.exists(wav_path):
+            os.remove(wav_path)
+
         return text
 
+    except sr.UnknownValueError:
+        print("Audio not understood")
+        return None
+    except sr.RequestError as e:
+        print(f"Google API error: {e}")
+        return None
     except Exception as e:
         print(f"Voice processing error: {e}")
         return None
 
 
-# ── Zapier Webhook (Backup Option) ───────────
+# ── Zapier Webhook ───────────────────────────
 @csrf_exempt
 def zapier_webhook(request):
     if request.method == 'POST':
@@ -137,13 +169,18 @@ def zapier_webhook(request):
             data = json.loads(request.body)
             message = data.get('message', '')
             phone = data.get('phone', '')
-            distributor_id = data.get('distributor_id', 1)
+            distributor_id = data.get(
+                'distributor_id', 1
+            )
 
-            medicines = extract_medicines(message, distributor_id)
+            medicines = extract_medicines(
+                message, distributor_id
+            )
 
             if medicines:
                 order = create_draft_order(
-                    message, medicines, phone, distributor_id
+                    message, medicines,
+                    phone, distributor_id
                 )
                 return JsonResponse({
                     'status': 'success',
@@ -174,7 +211,9 @@ def extract_medicines(text, distributor_id):
     for medicine in all_medicines:
         name = medicine.medicine_name.lower()
         if name in text_lower:
-            quantity = extract_quantity(text_lower, name)
+            quantity = extract_quantity(
+                text_lower, name
+            )
             found.append({
                 'stock': medicine,
                 'quantity': quantity
@@ -188,7 +227,9 @@ def extract_quantity(text, medicine_name):
     if match1:
         return int(match1.group(1))
 
-    pattern2 = re.escape(medicine_name) + r'\s*(\d+)'
+    pattern2 = (
+        re.escape(medicine_name) + r'\s*(\d+)'
+    )
     match2 = re.search(pattern2, text)
     if match2:
         return int(match2.group(1))
@@ -197,9 +238,13 @@ def extract_quantity(text, medicine_name):
 
 
 # ── Create Draft Order ───────────────────────
-def create_draft_order(text, medicines, phone, distributor_id):
+def create_draft_order(
+    text, medicines, phone, distributor_id
+):
     from users.models import Distributor
-    distributor = Distributor.objects.get(id=distributor_id)
+    distributor = Distributor.objects.get(
+        id=distributor_id
+    )
 
     customer = Customer.objects.filter(
         distributor=distributor,
@@ -252,23 +297,29 @@ def voice_orders_list(request):
     )
 
 
-# ── Manual Voice Order Create ────────────────
+# ── Manual Voice Order ───────────────────────
 @login_required
 def create_manual_voice_order(request):
     distributor = get_distributor(request)
-    customers = Customer.objects.filter(distributor=distributor)
+    customers = Customer.objects.filter(
+        distributor=distributor
+    )
 
     if request.method == 'POST':
         message = request.POST['message']
         customer_id = request.POST['customer']
-        customer = Customer.objects.get(id=customer_id)
+        customer = Customer.objects.get(
+            id=customer_id
+        )
 
-        medicines = extract_medicines(message, distributor.id)
+        medicines = extract_medicines(
+            message, distributor.id
+        )
 
         if not medicines:
             messages.error(
                 request,
-                'No medicines found! Check medicine names.'
+                'No medicines found! Check names.'
             )
             return redirect('create_manual_voice_order')
 
@@ -295,7 +346,9 @@ def create_manual_voice_order(request):
             status='draft'
         )
 
-        messages.success(request, 'Draft order created!')
+        messages.success(
+            request, 'Draft order created!'
+        )
         return redirect('voice_orders_list')
 
     return render(
@@ -308,14 +361,17 @@ def create_manual_voice_order(request):
 # ── Confirm Order ────────────────────────────
 @login_required
 def confirm_order(request, voice_order_id):
-    voice_order = VoiceOrder.objects.get(id=voice_order_id)
+    voice_order = VoiceOrder.objects.get(
+        id=voice_order_id
+    )
     order = voice_order.order
 
     for item in order.items.all():
         if item.stock.quantity < item.quantity:
             messages.error(
                 request,
-                f'Insufficient stock for {item.stock.medicine_name}!'
+                f'Insufficient stock for '
+                f'{item.stock.medicine_name}!'
             )
             return redirect('voice_orders_list')
 
@@ -348,14 +404,18 @@ def confirm_order(request, voice_order_id):
     voice_order.status = 'confirmed'
     voice_order.save()
 
-    messages.success(request, 'Order confirmed! Invoice generated.')
+    messages.success(
+        request, 'Order confirmed! Invoice generated.'
+    )
     return redirect('voice_orders_list')
 
 
 # ── Cancel Order ─────────────────────────────
 @login_required
 def cancel_order(request, voice_order_id):
-    voice_order = VoiceOrder.objects.get(id=voice_order_id)
+    voice_order = VoiceOrder.objects.get(
+        id=voice_order_id
+    )
     voice_order.order.status = 'cancelled'
     voice_order.order.save()
     voice_order.status = 'cancelled'

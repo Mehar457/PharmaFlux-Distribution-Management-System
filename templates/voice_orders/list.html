@@ -3,11 +3,7 @@
 
 <div class="d-flex justify-content-between
             align-items-center mb-3">
-    <h3>🎤 Voice Orders</h3>
-    <a href="/voice-orders/create/"
-       class="btn btn-primary">
-       + Process Voice Message
-    </a>
+    <h3>🎤 WhatsApp Voice Orders</h3>
 </div>
 
 {% if messages %}
@@ -23,7 +19,6 @@
 {% endfor %}
 {% endif %}
 
-<!-- Pending Orders Alert -->
 {% for vo in voice_orders %}
 {% if vo.status == 'draft' %}
 <div class="alert alert-warning">
@@ -40,7 +35,7 @@
                 <tr>
                     <th>#</th>
                     <th>Customer</th>
-                    <th>Message</th>
+                    <th>WhatsApp Message</th>
                     <th>Medicines</th>
                     <th>Total</th>
                     <th>Status</th>
@@ -52,10 +47,16 @@
                 {% for vo in voice_orders %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
-                    <td>{{ vo.order.customer.name }}</td>
+                    <td>
+                        <strong>{{ vo.order.customer.name }}</strong>
+                        <br>
+                        <small class="text-muted">
+                            {{ vo.order.customer.whatsapp_number }}
+                        </small>
+                    </td>
                     <td>
                         <small class="text-muted">
-                            {{ vo.voice_input|truncatechars:50 }}
+                            {{ vo.voice_input|truncatechars:60 }}
                         </small>
                     </td>
                     <td>
@@ -66,9 +67,7 @@
                         </small><br>
                         {% endfor %}
                     </td>
-                    <td>
-                        Rs. {{ vo.order.get_total }}
-                    </td>
+                    <td>Rs. {{ vo.order.get_total }}</td>
                     <td>
                         {% if vo.status == 'draft' %}
                         <span class="badge bg-warning text-dark">
@@ -98,7 +97,7 @@
                         </a>
                         <a href="/voice-orders/cancel/{{ vo.id }}/"
                            class="btn btn-sm btn-danger"
-                           onclick="return confirm('Cancel this order?')">
+                           onclick="return confirm('Cancel?')">
                            ❌ Cancel
                         </a>
                         {% elif vo.status == 'confirmed' %}
@@ -113,10 +112,7 @@
                 <tr>
                     <td colspan="8"
                         class="text-center text-muted py-4">
-                        No voice orders yet.
-                        <a href="/voice-orders/create/">
-                            Process first voice message
-                        </a>
+                        No WhatsApp voice orders yet.
                     </td>
                 </tr>
                 {% endfor %}

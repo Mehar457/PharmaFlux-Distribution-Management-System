@@ -1,86 +1,318 @@
 {% extends 'base.html' %}
 {% block content %}
-
-<div class="row justify-content-center">
-    <div class="col-md-7">
-        <div class="card">
-            <div class="card-header text-white"
-                 style="background:#1a2035;">
-                <h5>📝 Manual Order Entry</h5>
-                <small>
-                    Type customer message manually
-                    to create draft order
-                </small>
-            </div>
-            <div class="card-body">
-
-                <div class="alert alert-info mb-3">
-                    <strong>ℹ️ How it works:</strong><br>
-                    1. Select customer<br>
-                    2. Type their order message<br>
-                    3. System extracts medicines automatically<br>
-                    4. Review and confirm the order
-                </div>
-
-                {% if messages %}
-                {% for message in messages %}
-                <div class="alert alert-danger">
-                    {{ message }}
-                </div>
-                {% endfor %}
-                {% endif %}
-
-                <form method="POST">
-                    {% csrf_token %}
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">
-                            Select Customer *
-                        </label>
-                        <select name="customer"
-                                class="form-control"
-                                required>
-                            <option value="">
-                                -- Select Customer --
-                            </option>
-                            {% for customer in customers %}
-                            <option value="{{ customer.id }}">
-                                {{ customer.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">
-                            Order Message *
-                        </label>
-                        <textarea name="message"
-                                  class="form-control"
-                                  rows="4"
-                                  placeholder="Example: I want 100 Panadol and 50 Disprin"
-                                  required>
-                        </textarea>
-                        <small class="text-muted">
-                            Medicine names must match
-                            exactly as in stock
-                        </small>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit"
-                                class="btn btn-primary">
-                            🔍 Extract & Create Draft Order
-                        </button>
-                        <a href="/voice-orders/"
-                           class="btn btn-secondary">
-                            Cancel
-                        </a>
-                    </div>
-
-                </form>
-            </div>
-        </div>
+<div class="container mt-4">
+  <div class="card shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">📝 Create Manual Order</h5>
     </div>
+    <div class="card-body">
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Customer + Order Date -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-8">
+          <label class="form-label fw-bold">Select Customer *</label>
+          <select id="customer-select" class="form-select">
+            <option value="">-- Select Customer --</option>
+            {% for c in customers %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Order Date</label>
+          <input type="datetime-local" id="order-date-input" class="form-control">
+          <small class="text-muted">Leave blank to use current date/time</small>
+        </div>
+      </div>
+
+      <!-- Entry row (search + qty + add) -->
+      <div class="border rounded p-3 mb-4 bg-light">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label small mb-1">Medicine Name</label>
+            <input list="medicine-list" id="drug-search" class="form-control"
+                   placeholder="🔍 Enter drug name">
+            <datalist id="medicine-list">
+              {% for s in stock_items %}
+                <option value="{{ s.medicine_name }}"
+                        data-id="{{ s.id }}"
+                        data-qty="{{ s.quantity }}"
+                        data-price="{{ s.unit_price }}">
+              {% endfor %}
+            </datalist>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">Available</label>
+            <input type="text" id="stock-display" class="form-control" readonly>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">Quantity</label>
+            <input type="number" id="qty-input" class="form-control" min="1">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">Unit Price</label>
+            <input type="text" id="price-display" class="form-control" readonly>
+          </div>
+          <div class="col-md-1 text-end">
+            <button type="button" id="add-btn" class="btn btn-primary w-100" title="Add to order">➕</button>
+          </div>
+        </div>
+        <small id="entry-error" class="text-danger"></small>
+      </div>
+
+      <!-- Order items table -->
+      <h6 class="fw-bold">Order Items</h6>
+      <table class="table table-bordered table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Drug Name</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Subtotal</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="order-items-body">
+          <tr id="empty-row"><td colspan="5" class="text-center text-muted">No items added yet</td></tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3" class="text-end">Subtotal</th>
+            <th id="order-subtotal">0.00</th>
+            <th></th>
+          </tr>
+          <tr>
+            <th colspan="3" class="text-end">
+              Discount &nbsp;
+              <input type="number" id="discount-input" class="form-control form-control-sm d-inline-block"
+                     style="width: 100px;" min="0" step="0.01" value="0">
+            </th>
+            <th id="order-discount-display">0.00</th>
+            <th></th>
+          </tr>
+          <tr class="table-light">
+            <th colspan="3" class="text-end">Final Total</th>
+            <th id="order-final-total">0.00</th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="d-flex justify-content-between mt-4">
+        <div>
+          <a href="{% url 'voice_orders_list' %}" class="btn btn-secondary">Cancel</a>
+          <button type="button" id="reset-btn" class="btn btn-outline-secondary">Reset</button>
+        </div>
+        <button type="button" id="submit-btn" class="btn btn-success">✅ Create Draft Order</button>
+      </div>
+
+      <!-- Hidden real form, submitted via JS -->
+      <form id="manual-order-form" method="post" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="customer" id="hidden-customer">
+        <input type="hidden" name="order_date" id="hidden-order-date">
+        <input type="hidden" name="discount" id="hidden-discount">
+        <div id="hidden-items"></div>
+      </form>
+
+    </div>
+  </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const drugSearch = document.getElementById('drug-search');
+  const stockDisplay = document.getElementById('stock-display');
+  const priceDisplay = document.getElementById('price-display');
+  const qtyInput = document.getElementById('qty-input');
+  const addBtn = document.getElementById('add-btn');
+  const entryError = document.getElementById('entry-error');
+  const tbody = document.getElementById('order-items-body');
+  const emptyRow = document.getElementById('empty-row');
+  const subtotalCell = document.getElementById('order-subtotal');
+  const discountInput = document.getElementById('discount-input');
+  const discountDisplay = document.getElementById('order-discount-display');
+  const finalTotalCell = document.getElementById('order-final-total');
+  const submitBtn = document.getElementById('submit-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const customerSelect = document.getElementById('customer-select');
+  const orderDateInput = document.getElementById('order-date-input');
+
+  let orderItems = []; // {id, name, qty, price, available}
+
+  function findOption(name) {
+    const options = document.getElementById('medicine-list').options;
+    for (let opt of options) {
+      if (opt.value.toLowerCase() === name.toLowerCase()) return opt;
+    }
+    return null;
+  }
+
+  drugSearch.addEventListener('input', function () {
+    entryError.textContent = '';
+    const opt = findOption(drugSearch.value);
+    if (opt) {
+      const available = parseInt(opt.getAttribute('data-qty') || '0');
+      const price = opt.getAttribute('data-price') || '0';
+      priceDisplay.value = price;
+      if (available <= 0) {
+        stockDisplay.value = 'OUT OF STOCK';
+        stockDisplay.classList.add('text-danger', 'fw-bold');
+        qtyInput.disabled = true;
+      } else {
+        stockDisplay.value = available;
+        stockDisplay.classList.remove('text-danger', 'fw-bold');
+        qtyInput.disabled = false;
+        qtyInput.max = available;
+      }
+    } else {
+      stockDisplay.value = '';
+      priceDisplay.value = '';
+      qtyInput.disabled = false;
+    }
+  });
+
+  addBtn.addEventListener('click', function () {
+    entryError.textContent = '';
+    const opt = findOption(drugSearch.value);
+
+    if (!opt) {
+      entryError.textContent = 'Medicine not found in stock. Please select a valid item from the list.';
+      return;
+    }
+
+    const available = parseInt(opt.getAttribute('data-qty') || '0');
+    const qty = parseInt(qtyInput.value);
+
+    if (available <= 0) {
+      entryError.textContent = `${drugSearch.value} is OUT OF STOCK.`;
+      return;
+    }
+    if (!qty || qty <= 0) {
+      entryError.textContent = 'Enter a valid quantity.';
+      return;
+    }
+    if (qty > available) {
+      entryError.textContent = `Only ${available} available in stock.`;
+      return;
+    }
+
+    orderItems.push({
+      id: opt.getAttribute('data-id'),
+      name: opt.value,
+      qty: qty,
+      price: parseFloat(opt.getAttribute('data-price')),
+      available: available
+    });
+
+    renderTable();
+
+    drugSearch.value = '';
+    qtyInput.value = '';
+    stockDisplay.value = '';
+    priceDisplay.value = '';
+  });
+
+  function renderTable() {
+    tbody.innerHTML = '';
+    if (orderItems.length === 0) {
+      tbody.appendChild(emptyRow);
+    } else {
+      orderItems.forEach((item, idx) => {
+        const subtotal = item.qty * item.price;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.qty}</td>
+          <td>${item.price.toFixed(2)}</td>
+          <td>${subtotal.toFixed(2)}</td>
+          <td><button type="button" class="btn btn-outline-danger btn-sm remove-item" data-idx="${idx}">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', function () {
+          orderItems.splice(parseInt(btn.getAttribute('data-idx')), 1);
+          renderTable();
+        });
+      });
+    }
+    updateTotals();
+  }
+
+  function updateTotals() {
+    const subtotal = orderItems.reduce((sum, item) => sum + (item.qty * item.price), 0);
+    let discount = parseFloat(discountInput.value) || 0;
+
+    if (discount < 0) discount = 0;
+    if (discount > subtotal) {
+      discount = subtotal;
+      discountInput.value = subtotal.toFixed(2);
+    }
+
+    const finalTotal = subtotal - discount;
+
+    subtotalCell.textContent = subtotal.toFixed(2);
+    discountDisplay.textContent = discount.toFixed(2);
+    finalTotalCell.textContent = finalTotal.toFixed(2);
+  }
+
+  discountInput.addEventListener('input', updateTotals);
+
+  resetBtn.addEventListener('click', function () {
+    orderItems = [];
+    discountInput.value = 0;
+    orderDateInput.value = '';
+    renderTable();
+    drugSearch.value = '';
+    qtyInput.value = '';
+    stockDisplay.value = '';
+    priceDisplay.value = '';
+    entryError.textContent = '';
+  });
+
+  submitBtn.addEventListener('click', function () {
+    entryError.textContent = '';
+
+    if (!customerSelect.value) {
+      alert('Please select a customer.');
+      return;
+    }
+    if (orderItems.length === 0) {
+      alert('Please add at least one medicine to the order.');
+      return;
+    }
+
+    document.getElementById('hidden-customer').value = customerSelect.value;
+    document.getElementById('hidden-order-date').value = orderDateInput.value;
+    document.getElementById('hidden-discount').value = discountInput.value || 0;
+
+    const hiddenItems = document.getElementById('hidden-items');
+    hiddenItems.innerHTML = '';
+
+    orderItems.forEach(item => {
+      const idInput = document.createElement('input');
+      idInput.type = 'hidden';
+      idInput.name = 'medicine_id[]';
+      idInput.value = item.id;
+      hiddenItems.appendChild(idInput);
+
+      const qtyInputHidden = document.createElement('input');
+      qtyInputHidden.type = 'hidden';
+      qtyInputHidden.name = 'quantity[]';
+      qtyInputHidden.value = item.qty;
+      hiddenItems.appendChild(qtyInputHidden);
+    });
+
+    document.getElementById('manual-order-form').submit();
+  });
+});
+</script>
 {% endblock %}

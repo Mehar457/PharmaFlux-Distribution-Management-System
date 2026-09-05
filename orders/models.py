@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 # Create your models here.
 from users.models import Distributor
 from customers.models import Customer
@@ -25,7 +26,12 @@ class Order(models.Model):
         related_name='orders'
     )
     order_date = models.DateTimeField(
-        auto_now_add=True
+        default=timezone.now
+    )
+    discount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
     )
     status = models.CharField(
         max_length=20,
@@ -41,12 +47,16 @@ class Order(models.Model):
     def __str__(self):
         return f"Order #{self.id}"
 
-    def get_total(self):
-        total = sum(
+    def get_subtotal_total(self):
+        return sum(
             item.get_subtotal()
             for item in self.items.all()
         )
-        return total
+
+    def get_total(self):
+        total = self.get_subtotal_total() - self.discount
+        return max(total, 0)
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(

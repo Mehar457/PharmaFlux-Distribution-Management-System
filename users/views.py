@@ -50,6 +50,13 @@ def dashboard(request):
         'total_sales': 0,
         'total_purchases': 0,
         'profit': 0,
+        # Chart data — sirf distributor ke liye populate hoga (neeche
+        # dekhein). Employee ke liye ye khali rehta hai, aur template
+        # mein bhi role check ki wajah se graphs render hi nahi honge.
+        'chart_labels': '[]',
+        'chart_sales': '[]',
+        'chart_purchases': '[]',
+        'chart_profit': '[]',
     }
 
     try:
@@ -58,6 +65,7 @@ def dashboard(request):
         from purchases.models import Purchase
         from django.db.models import Sum
         from datetime import date, timedelta
+        import json
 
         if request.user.role == 'distributor':
             distributor = request.user.distributor
@@ -89,6 +97,57 @@ def dashboard(request):
         context['profit'] = (
             context['total_sales'] - context['total_purchases']
         )
+
+        # ── Dashboard graphs — SIRF distributor ke liye ──
+        # Employee is block mein bilkul nahi ghusta, is liye uske
+        # liye koi extra query bhi nahi chalti aur data bhi nahi
+        # banta (safe by default — kisi galti se bhi employee ko
+        # ye data nahi mil sakta).
+        if request.user.role == 'distributor':
+            today = date.today()
+            start_date = today - timedelta(days=29)  # pichle 30 din (aaj samet)
+
+            sales_by_date = {
+                row['sale_date']: float(row['total'] or 0)
+                for row in (
+                    Sale.objects.filter(
+                        distributor=distributor,
+                        sale_date__gte=start_date
+                    )
+                    .values('sale_date')
+                    .annotate(total=Sum('total_price'))
+                )
+            }
+            purchases_by_date = {
+                row['purchase_date']: float(row['total'] or 0)
+                for row in (
+                    Purchase.objects.filter(
+                        distributor=distributor,
+                        purchase_date__gte=start_date
+                    )
+                    .values('purchase_date')
+                    .annotate(total=Sum('purchase_price'))
+                )
+            }
+
+            labels = []
+            sales_series = []
+            purchases_series = []
+            profit_series = []
+
+            for i in range(30):
+                d = start_date + timedelta(days=i)
+                labels.append(d.strftime('%d %b'))
+                s = sales_by_date.get(d, 0)
+                p = purchases_by_date.get(d, 0)
+                sales_series.append(s)
+                purchases_series.append(p)
+                profit_series.append(round(s - p, 2))
+
+            context['chart_labels'] = json.dumps(labels)
+            context['chart_sales'] = json.dumps(sales_series)
+            context['chart_purchases'] = json.dumps(purchases_series)
+            context['chart_profit'] = json.dumps(profit_series)
 
     except Exception:
         pass

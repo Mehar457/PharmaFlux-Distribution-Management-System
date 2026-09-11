@@ -65,7 +65,18 @@
                             {{ item.stock.medicine_name }}
                             × {{ item.quantity }}
                         </small><br>
+                        {% empty %}
+                        <small class="text-danger fst-italic">
+                            No medicines matched
+                        </small>
                         {% endfor %}
+
+                        {% if "⚠" in vo.converted_text %}
+                        <div class="alert alert-warning py-1 px-2 mt-1 mb-0"
+                             style="font-size: 0.75rem; white-space: normal;">
+                            {{ vo.converted_text }}
+                        </div>
+                        {% endif %}
                     </td>
                     <td>Rs. {{ vo.order.get_total }}</td>
                     <td>

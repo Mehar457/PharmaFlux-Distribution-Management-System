@@ -62,14 +62,18 @@ def whatsapp_webhook(request):
                     print(f"TRANSCRIBED: {incoming_msg}")
 
                 if incoming_msg:
-                    medicines = extract_medicines(incoming_msg, 1)
-                    if medicines:
-                        create_draft_order(
-                            incoming_msg, medicines, from_number, 1
-                        )
-                        print("DRAFT ORDER CREATED")
-                    else:
-                        print("NO MEDICINES FOUND")
+                    medicines, hints = extract_medicines(incoming_msg, 1)
+                    # Order ab HAMESHA banega — chahe kuch match ho ya
+                    # na ho — taake koi bhi customer message chup-chap
+                    # gayab na ho. Agar kuch match nahi hua ya kuch
+                    # hissa samajh nahi aaya, VoiceOrder mein warning
+                    # note save ho jaata hai (neeche create_draft_order
+                    # mein).
+                    create_draft_order(
+                        incoming_msg, medicines, from_number, 1,
+                        unmatched_hints=hints
+                    )
+                    print(f"DRAFT ORDER CREATED (matched: {len(medicines)}, unmatched hints: {hints})")
                 else:
                     print("NO MESSAGE TEXT EXTRACTED")
 
@@ -137,6 +141,88 @@ def process_voice_audio(audio_id):
         return None
 
 
+# ── Quantity Helpers (word-numbers + filler-word-aware search) ──
+NUMBER_WORDS = {
+    'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+    'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
+    'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18,
+    'nineteen': 19, 'twenty': 20, 'thirty': 30, 'forty': 40,
+    'fifty': 50, 'sixty': 60, 'seventy': 70, 'eighty': 80,
+    'ninety': 90, 'hundred': 100
+}
+FILLER = {'of', 'the', 'a', 'an', 'packets', 'packet', 'tablets', 'tablet',
+          'strips', 'strip', 'boxes', 'box', 'pcs'}
+
+# Common command/filler words jo medicine name nahi ho saktay — inko
+# "unmatched hint" mein ignore kiya jaata hai taake sirf asal ajeeb
+# (samajh na aane waale) words hi flag hon, "give me order" jaisay
+# aam alfaaz nahi.
+STOPWORDS = {
+    'give', 'me', 'my', 'order', 'and', 'please', 'track', 'want',
+    'need', 'buy', 'send', 'for', 'to', 'on', 'in', 'is', 'are',
+    'i', 'would', 'like', 'kindly', 'plz', 'get', 'mujhe', 'chahiye'
+}
+
+
+def word_to_qty(word):
+    """Digit string ('10') ya number-word ('ten') ko int mein convert
+    karta hai. Match na ho to None."""
+    word = word.lower().strip()
+    if word.isdigit():
+        return int(word)
+    return NUMBER_WORDS.get(word)
+
+
+def find_qty_nearby(words, start, end, window=3):
+    """Medicine ke word-span (start..end) ke ird-gird quantity dhoondhta
+    hai — filler words ('of', 'packets', 'tablets' etc.) ko skip karte
+    hue. Pehle peeche dekhta hai, phir aage. Kuch na mile to 1."""
+    for i in range(start - 1, max(start - 1 - window, -1), -1):
+        if words[i] in FILLER:
+            continue
+        q = word_to_qty(words[i])
+        if q is not None:
+            return q
+        break  # non-filler, non-number word aaya -> ruk jao
+    for i in range(end, min(end + window, len(words))):
+        if words[i] in FILLER:
+            continue
+        q = word_to_qty(words[i])
+        if q is not None:
+            return q
+        break
+    return 1
+
+
+def find_unmatched_hints(words, used_word_indices):
+    """Jo words kisi bhi Stock medicine se match nahi huye AUR filler/
+    stopword/number bhi nahi hain, unko group kar ke wapas karta hai —
+    taake distributor ko dikh sake 'ye hissa samajh nahi aaya', chup-
+    chap gayab hone ke bajaye."""
+    leftover_idx = [
+        i for i in range(len(words))
+        if i not in used_word_indices
+        and words[i] not in STOPWORDS
+        and words[i] not in FILLER
+        and word_to_qty(words[i]) is None
+    ]
+    if not leftover_idx:
+        return []
+
+    groups = []
+    current = [leftover_idx[0]]
+    for idx in leftover_idx[1:]:
+        if idx == current[-1] + 1:
+            current.append(idx)
+        else:
+            groups.append(current)
+            current = [idx]
+    groups.append(current)
+
+    return [' '.join(words[i] for i in g) for g in groups]
+
+
 # ── Simple Similarity Check ──────────────────
 def similarity_score(word1, word2):
     """
@@ -164,8 +250,12 @@ def similarity_score(word1, word2):
 
     score = (prefix / max_len) * 100
 
-    # Bonus if one contains the other
-    if w1 in w2 or w2 in w1:
+    # Bonus if one contains the other — SIRF tab jab dono words kaafi
+    # lambe hon, warna chhote words ('me', 'of', 'to') kisi bhi lambe
+    # medicine-name ke andar false-match ho jaate hain (e.g. 'me' is
+    # a substring of 'augmentin').
+    shorter = min(len(w1), len(w2))
+    if shorter >= 4 and (w1 in w2 or w2 in w1):
         score = max(score, 75)
 
     return score
@@ -216,21 +306,11 @@ def extract_medicines(text, distributor_id):
 
         print(f"Medicine: {medicine.medicine_name}, Best score: {best_score:.1f}%")
         if best_score >= 65 and best_start >= 0:
-            quantity = 1
+            quantity = find_qty_nearby(words, best_start, best_start + n)
 
-            if best_start > 0:
-                try:
-                    quantity = int(words[best_start - 1])
-                except:
-                    pass
-
-            if quantity == 1 and best_start + n < len(words):
-                try:
-                    quantity = int(words[best_start + n])
-                except:
-                    pass
-
-            # Pattern matching
+            # Pattern matching (digit-adjacent-to-name — extra fallback,
+            # e.g. "Augmentin 100" where the digit sits right after the
+            # name with no filler word in between)
             q = extract_quantity(text_lower, med_name)
             if q > 1:
                 quantity = q
@@ -246,7 +326,8 @@ def extract_medicines(text, distributor_id):
             for j in range(best_start, best_start + n):
                 used_word_indices.add(j)
 
-    return found
+    hints = find_unmatched_hints(words, used_word_indices)
+    return found, hints
 
 
 def extract_quantity(text, medicine_name):
@@ -264,7 +345,7 @@ def extract_quantity(text, medicine_name):
 
 
 # ── Create Draft Order ───────────────────────
-def create_draft_order(text, medicines, phone, distributor_id):
+def create_draft_order(text, medicines, phone, distributor_id, unmatched_hints=None):
     from users.models import Distributor
     distributor = Distributor.objects.get(id=distributor_id)
 
@@ -317,11 +398,40 @@ def create_draft_order(text, medicines, phone, distributor_id):
             unit_price=item['stock'].unit_price
         )
 
+    # ── Warning note banayein agar kuch match nahi hua, kuch hissa
+    # samajh nahi aaya, YA kisi medicine ka stock kam/khatam hai —
+    # taake distributor ko confirm karne se PEHLE hi pata chal jaye,
+    # confirm button dabane ke baad achanak block na ho ──
+    note_parts = []
+    if not medicines:
+        note_parts.append("⚠ Koi bhi medicine Stock se match nahi hui — manual review zaroori hai")
+    if unmatched_hints:
+        note_parts.append("⚠ Samajh nahi aaya: " + ', '.join(unmatched_hints))
+
+    stock_warnings = []
+    for item in medicines:
+        available = item['stock'].quantity
+        requested = item['quantity']
+        if available <= 0:
+            stock_warnings.append(f"{item['stock'].medicine_name} OUT OF STOCK (0 available)")
+        elif requested > available:
+            stock_warnings.append(
+                f"{item['stock'].medicine_name}: sirf {available} available, {requested} manga gaya"
+            )
+    if stock_warnings:
+        note_parts.append("⚠ Stock kam hai: " + '; '.join(stock_warnings))
+
+    # converted_text mein sirf warnings rakhte hain (raw text dobara
+    # nahi likhते — wo pehle se hi voice_input field mein hai aur
+    # "WhatsApp Message" column mein dikhta hai). Agar koi warning
+    # nahi hai, converted_text khali rehta hai.
+    converted_text = " | ".join(note_parts) if note_parts else ""
+
     VoiceOrder.objects.create(
         order=order,
         distributor=distributor,
         voice_input=text,
-        converted_text=text,
+        converted_text=converted_text,
         status='draft'
     )
 
@@ -338,15 +448,19 @@ def zapier_webhook(request):
             phone = data.get('phone', '')
             distributor_id = data.get('distributor_id', 1)
 
-            medicines = extract_medicines(message, distributor_id)
+            medicines, hints = extract_medicines(message, distributor_id)
 
-            if medicines:
-                order = create_draft_order(
-                    message, medicines, phone, distributor_id
-                )
-                return JsonResponse({'status': 'success', 'order_id': order.id})
-            else:
-                return JsonResponse({'status': 'error', 'message': 'No medicines found'})
+            order = create_draft_order(
+                message, medicines, phone, distributor_id,
+                unmatched_hints=hints
+            )
+            status = 'success' if medicines else 'needs_review'
+            return JsonResponse({
+                'status': status,
+                'order_id': order.id,
+                'matched_count': len(medicines),
+                'unmatched_hints': hints
+            })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
 

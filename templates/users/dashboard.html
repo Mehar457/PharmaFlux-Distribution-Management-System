@@ -79,4 +79,93 @@
     </div>
 </div>
 
+{% if request.user.role == 'distributor' %}
+<!-- Progress Graphs — SIRF distributor ko dikhte hain. Employee is
+     block ke andar kabhi nahi aata (role check upar), is liye na
+     canvas render hoga na chart data template mein jayega. -->
+<div class="row g-4 mt-1">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <strong>📈 Sales vs Purchases (Last 30 Days)</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="salesPurchaseChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <strong>💰 Daily Profit/Loss (Last 30 Days)</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="profitChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const labels = {{ chart_labels|safe }};
+    const salesData = {{ chart_sales|safe }};
+    const purchasesData = {{ chart_purchases|safe }};
+    const profitData = {{ chart_profit|safe }};
+
+    new Chart(document.getElementById('salesPurchaseChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Sales',
+                    data: salesData,
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25,135,84,0.1)',
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Purchases',
+                    data: purchasesData,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220,53,69,0.1)',
+                    tension: 0.3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    new Chart(document.getElementById('profitChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Profit/Loss',
+                    data: profitData,
+                    backgroundColor: profitData.map(
+                        v => v >= 0 ? 'rgba(25,135,84,0.7)' : 'rgba(220,53,69,0.7)'
+                    )
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+});
+</script>
+{% endif %}
+
 {% endblock %}

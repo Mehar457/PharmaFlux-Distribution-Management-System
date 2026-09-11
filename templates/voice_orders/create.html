@@ -27,7 +27,6 @@
         <div class="col-md-4">
           <label class="form-label fw-bold">Order Date</label>
           <input type="datetime-local" id="order-date-input" class="form-control">
-          <small class="text-muted">Leave blank to use current date/time</small>
         </div>
       </div>
 
@@ -36,8 +35,8 @@
         <div class="row g-2 align-items-end">
           <div class="col-md-5">
             <label class="form-label small mb-1">Medicine Name</label>
-            <input list="medicine-list" id="drug-search" class="form-control"
-                   placeholder="🔍 Enter drug name">
+            <input list="medicine-list" id="medicine-search" class="form-control"
+                   placeholder="🔍 Enter medicine name">
             <datalist id="medicine-list">
               {% for s in stock_items %}
                 <option value="{{ s.medicine_name }}"
@@ -71,7 +70,7 @@
       <table class="table table-bordered table-sm align-middle">
         <thead class="table-light">
           <tr>
-            <th>Drug Name</th>
+            <th>Medicine Name</th>
             <th>Quantity</th>
             <th>Unit Price</th>
             <th>Subtotal</th>
@@ -127,7 +126,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const drugSearch = document.getElementById('drug-search');
+  const drugSearch = document.getElementById('medicine-search');
   const stockDisplay = document.getElementById('stock-display');
   const priceDisplay = document.getElementById('price-display');
   const qtyInput = document.getElementById('qty-input');
@@ -156,7 +155,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
   drugSearch.addEventListener('input', function () {
     entryError.textContent = '';
-    const opt = findOption(drugSearch.value);
+    entryError.classList.remove('text-warning');
+    entryError.classList.add('text-danger');
+
+    const typedValue = drugSearch.value.trim();
+    const opt = findOption(typedValue);
+
     if (opt) {
       const available = parseInt(opt.getAttribute('data-qty') || '0');
       const price = opt.getAttribute('data-price') || '0';
@@ -175,15 +179,29 @@ document.addEventListener('DOMContentLoaded', function () {
       stockDisplay.value = '';
       priceDisplay.value = '';
       qtyInput.disabled = false;
+
+      // NEW: agar customer ne kuch type kar liya hai lekin wo
+      // Stock list mein bilkul nahi mil raha, turant clear message
+      // dikhayein — blank fields chhod kar confuse na karein.
+      if (typedValue.length > 2) {
+        entryError.textContent =
+          `"${typedValue}" abhi Stock mein register nahi hai. Pehle Stock section mein isay add karein, phir order mein shamil karein.`;
+        entryError.classList.remove('text-danger');
+        entryError.classList.add('text-warning');
+      }
     }
   });
 
   addBtn.addEventListener('click', function () {
     entryError.textContent = '';
+    entryError.classList.remove('text-warning');
+    entryError.classList.add('text-danger');
+
     const opt = findOption(drugSearch.value);
 
     if (!opt) {
-      entryError.textContent = 'Medicine not found in stock. Please select a valid item from the list.';
+      entryError.textContent =
+        `"${drugSearch.value}" Stock mein nahi mili. Pehle Stock section mein add karein, phir dubara try karein.`;
       return;
     }
 

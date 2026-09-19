@@ -24,7 +24,6 @@ def get_distributor(request):
     return None
 
 
-# ── Meta WhatsApp Webhook ────────────────────
 @csrf_exempt
 def whatsapp_webhook(request):
 
@@ -63,12 +62,6 @@ def whatsapp_webhook(request):
 
                 if incoming_msg:
                     medicines, hints = extract_medicines(incoming_msg, 1)
-                    # Order ab HAMESHA banega — chahe kuch match ho ya
-                    # na ho — taake koi bhi customer message chup-chap
-                    # gayab na ho. Agar kuch match nahi hua ya kuch
-                    # hissa samajh nahi aaya, VoiceOrder mein warning
-                    # note save ho jaata hai (neeche create_draft_order
-                    # mein).
                     create_draft_order(
                         incoming_msg, medicines, from_number, 1,
                         unmatched_hints=hints
@@ -85,7 +78,6 @@ def whatsapp_webhook(request):
     return HttpResponse('Method not allowed', status=405)
 
 
-# ── Voice Audio Process ──────────────────────
 def process_voice_audio(audio_id):
     try:
         import speech_recognition as sr
@@ -140,8 +132,6 @@ def process_voice_audio(audio_id):
         print(f"Voice processing error: {e}")
         return None
 
-
-# ── Quantity Helpers (word-numbers + filler-word-aware search) ──
 NUMBER_WORDS = {
     'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
     'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
@@ -154,10 +144,6 @@ NUMBER_WORDS = {
 FILLER = {'of', 'the', 'a', 'an', 'packets', 'packet', 'tablets', 'tablet',
           'strips', 'strip', 'boxes', 'box', 'pcs'}
 
-# Common command/filler words jo medicine name nahi ho saktay — inko
-# "unmatched hint" mein ignore kiya jaata hai taake sirf asal ajeeb
-# (samajh na aane waale) words hi flag hon, "give me order" jaisay
-# aam alfaaz nahi.
 STOPWORDS = {
     'give', 'me', 'my', 'order', 'and', 'please', 'track', 'want',
     'need', 'buy', 'send', 'for', 'to', 'on', 'in', 'is', 'are',
@@ -175,9 +161,6 @@ def word_to_qty(word):
 
 
 def find_qty_nearby(words, start, end, window=3):
-    """Medicine ke word-span (start..end) ke ird-gird quantity dhoondhta
-    hai — filler words ('of', 'packets', 'tablets' etc.) ko skip karte
-    hue. Pehle peeche dekhta hai, phir aage. Kuch na mile to 1."""
     for i in range(start - 1, max(start - 1 - window, -1), -1):
         if words[i] in FILLER:
             continue
@@ -196,10 +179,6 @@ def find_qty_nearby(words, start, end, window=3):
 
 
 def find_unmatched_hints(words, used_word_indices):
-    """Jo words kisi bhi Stock medicine se match nahi huye AUR filler/
-    stopword/number bhi nahi hain, unko group kar ke wapas karta hai —
-    taake distributor ko dikh sake 'ye hissa samajh nahi aaya', chup-
-    chap gayab hone ke bajaye."""
     leftover_idx = [
         i for i in range(len(words))
         if i not in used_word_indices
@@ -223,12 +202,8 @@ def find_unmatched_hints(words, used_word_indices):
     return [' '.join(words[i] for i in g) for g in groups]
 
 
-# ── Simple Similarity Check ──────────────────
 def similarity_score(word1, word2):
-    """
-    Simple similarity — kitne characters same hain
-    No external library needed
-    """
+   
     w1 = word1.lower().strip()
     w2 = word2.lower().strip()
 
@@ -249,23 +224,15 @@ def similarity_score(word1, word2):
         return 0
 
     score = (prefix / max_len) * 100
-
-    # Bonus if one contains the other — SIRF tab jab dono words kaafi
-    # lambe hon, warna chhote words ('me', 'of', 'to') kisi bhi lambe
-    # medicine-name ke andar false-match ho jaate hain (e.g. 'me' is
-    # a substring of 'augmentin').
     shorter = min(len(w1), len(w2))
     if shorter >= 4 and (w1 in w2 or w2 in w1):
         score = max(score, 75)
 
     return score
 
-
-# ── NLP Medicine Extract ─────────────────────
 def extract_medicines(text, distributor_id):
     found = []
 
-    # Longest name pehle (Dicloran SR before Dicloran)
     all_medicines = sorted(
         Stock.objects.filter(distributor_id=distributor_id),
         key=lambda m: len(m.medicine_name),
@@ -292,7 +259,6 @@ def extract_medicines(text, distributor_id):
             if any(j in used_word_indices for j in range(i, i + n)):
                 continue
 
-            # Comparing word
             phrase_words = words[i:i + n]
             scores = []
             for mw, pw in zip(med_words, phrase_words):
@@ -308,9 +274,6 @@ def extract_medicines(text, distributor_id):
         if best_score >= 65 and best_start >= 0:
             quantity = find_qty_nearby(words, best_start, best_start + n)
 
-            # Pattern matching (digit-adjacent-to-name — extra fallback,
-            # e.g. "Augmentin 100" where the digit sits right after the
-            # name with no filler word in between)
             q = extract_quantity(text_lower, med_name)
             if q > 1:
                 quantity = q
@@ -322,7 +285,6 @@ def extract_medicines(text, distributor_id):
                 'quantity': quantity
             })
 
-            # Mark words as used
             for j in range(best_start, best_start + n):
                 used_word_indices.add(j)
 
@@ -352,13 +314,11 @@ def create_draft_order(text, medicines, phone, distributor_id, unmatched_hints=N
     clean_phone = phone.replace('+', '').strip()
     print(f"Looking for customer: {clean_phone}")
 
-    # Exact match
     customer = Customer.objects.filter(
         distributor=distributor,
         whatsapp_number=clean_phone
     ).first()
 
-    # Last 10 digits match
     if not customer:
         last_10 = clean_phone[-10:]
         for c in Customer.objects.filter(distributor=distributor):
@@ -370,7 +330,6 @@ def create_draft_order(text, medicines, phone, distributor_id, unmatched_hints=N
                 print(f"Matched customer: {c.name}")
                 break
 
-    # Auto create if not found
     if not customer:
         customer = Customer.objects.create(
             distributor=distributor,
@@ -398,15 +357,11 @@ def create_draft_order(text, medicines, phone, distributor_id, unmatched_hints=N
             unit_price=item['stock'].unit_price
         )
 
-    # ── Warning note banayein agar kuch match nahi hua, kuch hissa
-    # samajh nahi aaya, YA kisi medicine ka stock kam/khatam hai —
-    # taake distributor ko confirm karne se PEHLE hi pata chal jaye,
-    # confirm button dabane ke baad achanak block na ho ──
     note_parts = []
     if not medicines:
-        note_parts.append("⚠ Koi bhi medicine Stock se match nahi hui — manual review zaroori hai")
+        note_parts.append("⚠ No medicine matched in stock - manual reviw required could not understand:{text}")
     if unmatched_hints:
-        note_parts.append("⚠ Samajh nahi aaya: " + ', '.join(unmatched_hints))
+        note_parts.append("⚠ could not understand: " + ', '.join(unmatched_hints))
 
     stock_warnings = []
     for item in medicines:
@@ -419,12 +374,8 @@ def create_draft_order(text, medicines, phone, distributor_id, unmatched_hints=N
                 f"{item['stock'].medicine_name}: sirf {available} available, {requested} manga gaya"
             )
     if stock_warnings:
-        note_parts.append("⚠ Stock kam hai: " + '; '.join(stock_warnings))
+        note_parts.append("⚠ Low Stock: " + '; '.join(stock_warnings))
 
-    # converted_text mein sirf warnings rakhte hain (raw text dobara
-    # nahi likhते — wo pehle se hi voice_input field mein hai aur
-    # "WhatsApp Message" column mein dikhta hai). Agar koi warning
-    # nahi hai, converted_text khali rehta hai.
     converted_text = " | ".join(note_parts) if note_parts else ""
 
     VoiceOrder.objects.create(
@@ -477,10 +428,8 @@ def voice_orders_list(request):
 
     return render(request, 'voice_orders/list.html', {'voice_orders': voice_orders})
 
-
-# ── Manual Voice Order (REDESIGNED: proper stock fields + order date + discount) ──
 @login_required
-def create_manual_voice_order(request):
+def create_manual_order(request):
     distributor = get_distributor(request)
     customers = Customer.objects.filter(distributor=distributor)
     stock_items = Stock.objects.filter(distributor=distributor).order_by('medicine_name')
@@ -494,15 +443,14 @@ def create_manual_voice_order(request):
 
         if not customer_id:
             messages.error(request, 'Please select a customer.')
-            return redirect('create_manual_voice_order')
+            return redirect('create_manual_order')
 
         if not medicine_ids:
             messages.error(request, 'Please add at least one medicine.')
-            return redirect('create_manual_voice_order')
+            return redirect('create_manual_order')
 
         customer = Customer.objects.get(id=customer_id)
 
-        # ── Order date: agar distributor ne nahi diya, "abhi" use hoga ──
         order_date = dj_timezone.now()
         if order_date_raw:
             parsed = parse_datetime(order_date_raw)
@@ -512,18 +460,16 @@ def create_manual_voice_order(request):
                 order_date = parsed
             else:
                 messages.error(request, 'Invalid order date format.')
-                return redirect('create_manual_voice_order')
+                return redirect('create_manual_order')
 
-        # ── Discount: optional — har order ke liye distributor ki apni choice ──
         try:
             discount = float(discount_raw) if discount_raw else 0
             if discount < 0:
                 raise ValueError
         except ValueError:
             messages.error(request, 'Discount must be a valid non-negative number.')
-            return redirect('create_manual_voice_order')
+            return redirect('create_manual_order')
 
-        # ── Validate every medicine row first (no partial orders) ──
         cleaned_items = []
         errors = []
 
@@ -563,23 +509,22 @@ def create_manual_voice_order(request):
         if errors:
             for e in errors:
                 messages.error(request, e)
-            return redirect('create_manual_voice_order')
+            return redirect('create_manual_order')
 
         if not cleaned_items:
             messages.error(request, 'No valid medicines to order.')
-            return redirect('create_manual_voice_order')
+            return redirect('create_manual_order')
 
         subtotal = sum(item['stock'].unit_price * item['quantity'] for item in cleaned_items)
         if discount > subtotal:
             messages.error(request, f'Discount ({discount}) cannot exceed order subtotal ({subtotal}).')
-            return redirect('create_manual_voice_order')
+            return redirect('create_manual_order')
 
-        # ── All good → create order ──
         order = Order.objects.create(
             customer=customer,
             distributor=distributor,
             status='draft',
-            order_type='voice',
+            order_type='manual',
             order_date=order_date,
             discount=discount
         )
@@ -602,16 +547,13 @@ def create_manual_voice_order(request):
             status='draft'
         )
 
-        messages.success(request, 'Draft order created!')
+        messages.success(request, 'Draft ordeer created!')
         return redirect('voice_orders_list')
 
     return render(request, 'voice_orders/create.html', {
         'customers': customers,
         'stock_items': stock_items,
     })
-
-
-# ── Confirm Order (UPDATED: discount ab final invoice total mein apply hoti hai) ──
 @login_required
 def confirm_order(request, voice_order_id):
     voice_order = VoiceOrder.objects.get(id=voice_order_id)
@@ -624,11 +566,6 @@ def confirm_order(request, voice_order_id):
                 f'Insufficient stock for {item.stock.medicine_name}!'
             )
             return redirect('voice_orders_list')
-
-    # order.get_total() = sum(item subtotals) - order.discount
-    # Agar order par discount nahi di gayi thi (default 0), to ye
-    # automatically pura subtotal hi return karta hai — koi extra check
-    # nahi lagani padi, har order apni discount value khud carry karta hai.
     total_price = order.get_total()
 
     for item in order.items.all():

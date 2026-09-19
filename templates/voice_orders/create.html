@@ -30,7 +30,6 @@
         </div>
       </div>
 
-      <!-- Entry row (search + qty + add) -->
       <div class="border rounded p-3 mb-4 bg-light">
         <div class="row g-2 align-items-end">
           <div class="col-md-5">
@@ -65,7 +64,6 @@
         <small id="entry-error" class="text-danger"></small>
       </div>
 
-      <!-- Order items table -->
       <h6 class="fw-bold">Order Items</h6>
       <table class="table table-bordered table-sm align-middle">
         <thead class="table-light">
@@ -111,7 +109,6 @@
         <button type="button" id="submit-btn" class="btn btn-success">✅ Create Draft Order</button>
       </div>
 
-      <!-- Hidden real form, submitted via JS -->
       <form id="manual-order-form" method="post" style="display:none;">
         {% csrf_token %}
         <input type="hidden" name="customer" id="hidden-customer">
@@ -143,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const customerSelect = document.getElementById('customer-select');
   const orderDateInput = document.getElementById('order-date-input');
 
-  let orderItems = []; // {id, name, qty, price, available}
+  let orderItems = [];
 
   function findOption(name) {
     const options = document.getElementById('medicine-list').options;
@@ -180,12 +177,9 @@ document.addEventListener('DOMContentLoaded', function () {
       priceDisplay.value = '';
       qtyInput.disabled = false;
 
-      // NEW: agar customer ne kuch type kar liya hai lekin wo
-      // Stock list mein bilkul nahi mil raha, turant clear message
-      // dikhayein — blank fields chhod kar confuse na karein.
       if (typedValue.length > 2) {
         entryError.textContent =
-          `"${typedValue}" abhi Stock mein register nahi hai. Pehle Stock section mein isay add karein, phir order mein shamil karein.`;
+          `"${typedValue}" not found in stock add it in stock section first and check manually`;
         entryError.classList.remove('text-danger');
         entryError.classList.add('text-warning');
       }
@@ -201,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!opt) {
       entryError.textContent =
-        `"${drugSearch.value}" Stock mein nahi mili. Pehle Stock section mein add karein, phir dubara try karein.`;
+        `"${drugSearch.value}" not found in stock add it in stock section first and check manually`;
       return;
     }
 

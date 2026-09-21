@@ -15,16 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-pharmaflux-secret-key-2024'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGIONS = [
     'https://huddle-truffle-public.ngrok-free.dev',
@@ -86,7 +76,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pharmaflux.wsgi.application'
 
 
-# Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
@@ -96,9 +85,6 @@ DATABASES = {
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -144,5 +130,4 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-META_ACCESS_TOKEN = 'EAAS8JwWBUgoBSPj9meWBq6ZB0o6S5DmM633u629CSdoiS0djgd38jeQSHcanuF1s6vkvxBGVGhTNNGVUvjIQyaoDknbNw55W7GQYgD5DZBX37RadnkZB3UCRFJ1CpY1btLCKs8muM4ZASDLoWi9USZBti0KG7wBhxUvBSQd0bmHejZBpgCI4flozn99GxDrZC9PqUbZAZBGZAp7umhK7ZCZCnZA1dpZCOcy7v3ilq3Lci0'
 STATIC_ROOT = BASE_DIR / 'staticfiles'

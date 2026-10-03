@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 
 
@@ -50,9 +52,6 @@ def dashboard(request):
         'total_sales': 0,
         'total_purchases': 0,
         'profit': 0,
-        # Chart data — sirf distributor ke liye populate hoga (neeche
-        # dekhein). Employee ke liye ye khali rehta hai, aur template
-        # mein bhi role check ki wajah se graphs render hi nahi honge.
         'chart_labels': '[]',
         'chart_sales': '[]',
         'chart_purchases': '[]',
@@ -98,11 +97,7 @@ def dashboard(request):
             context['total_sales'] - context['total_purchases']
         )
 
-        # ── Dashboard graphs — SIRF distributor ke liye ──
-        # Employee is block mein bilkul nahi ghusta, is liye uske
-        # liye koi extra query bhi nahi chalti aur data bhi nahi
-        # banta (safe by default — kisi galti se bhi employee ko
-        # ye data nahi mil sakta).
+        
         if request.user.role == 'distributor':
             today = date.today()
             start_date = today - timedelta(days=29)  # pichle 30 din (aaj samet)
@@ -170,7 +165,8 @@ def superadmin_dashboard(request):
         'users/superadmin_dashboard.html',
         {'distributors': distributors}
     )
-   
+
+
 @login_required
 def add_distributor(request):
     if request.method == 'POST':
@@ -183,6 +179,13 @@ def add_distributor(request):
 
         if User.objects.filter(username=username).exists():
             messages.error(request, 'Username already exists!')
+            return redirect('add_distributor')
+
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            for error in e.messages:
+                messages.error(request, error)
             return redirect('add_distributor')
 
         user = User.objects.create_user(
@@ -259,6 +262,13 @@ def add_employee(request):
             messages.error(request, 'Username already exists!')
             return redirect('add_employee')
 
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            for error in e.messages:
+                messages.error(request, error)
+            return redirect('add_employee')
+
         user = User.objects.create_user(
             username=username,
             email=email,
@@ -276,3 +286,38 @@ def add_employee(request):
         return redirect('manage_employees')
 
     return render(request, 'users/add_employee.html')
+
+
+@login_required
+def change_password(request):
+    if request.method == 'POST':
+        current_password = request.POST.get('current_password')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if not request.user.check_password(current_password):
+            messages.error(request, 'Current password is incorrect.')
+            return redirect('change_password')
+
+        if new_password != confirm_password:
+            messages.error(request, 'New password and confirmation do not match.')
+            return redirect('change_password')
+
+        try:
+            validate_password(new_password, user=request.user)
+        except ValidationError as e:
+            for error in e.messages:
+                messages.error(request, error)
+            return redirect('change_password')
+
+        request.user.set_password(new_password)
+        request.user.save()
+
+        update_session_auth_hash(request, request.user)
+
+        messages.success(request, 'Password changed successfully!')
+        if request.user.role == 'superadmin':
+            return redirect('superadmin_dashboard')
+        return redirect('dashboard')
+
+    return render(request, 'users/change_password.html')

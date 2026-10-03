@@ -1,3 +1,4 @@
+
 """
 Django settings for pharmaflux project.
 
@@ -16,18 +17,33 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env
 load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-only-for-local-emergency-use')
+
+
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-fallback-only-for-local-emergency-use'
+)
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
+# Allow local + ngrok + deployment hosts
 ALLOWED_HOSTS = ['*']
+
+
 
 CSRF_TRUSTED_ORIGINS = [
     'https://huddle-truffle-public.ngrok-free.dev',
     'https://*.onrender.com',
 ]
+
+# Public URL used for password-reset links during testing
+SITE_URL = 'https://huddle-truffle-public.ngrok-free.dev'
+
+
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -36,8 +52,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'crispy_forms',
     'crispy_bootstrap5',
+
     'users',
     'stock',
     'customers',
@@ -48,6 +66,9 @@ INSTALLED_APPS = [
     'reports',
     'voice_orders',
 ]
+
+
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -60,13 +81,26 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
+
+
 ROOT_URLCONF = 'pharmaflux.urls'
+
+WSGI_APPLICATION = 'pharmaflux.wsgi.application'
+
+
+
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+
+        'DIRS': [
+            BASE_DIR / 'templates'
+        ],
+
         'APP_DIRS': True,
+
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -77,7 +111,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'pharmaflux.wsgi.application'
+
+
 
 DATABASES = {
     'default': {
@@ -86,37 +121,106 @@ DATABASES = {
     }
 }
 
+
+
+
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        'NAME':
+        'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'
+    },
+    {
+        'NAME':
+        'django.contrib.auth.password_validation.MinimumLengthValidator'
+    },
+    {
+        'NAME':
+        'django.contrib.auth.password_validation.CommonPasswordValidator'
+    },
+    {
+        'NAME':
+        'django.contrib.auth.password_validation.NumericPasswordValidator'
+    },
+    {
+        'NAME':
+        'users.validators.ComplexPasswordValidator'
+    },
 ]
 
+
+
+
 AUTH_USER_MODEL = 'users.user'
+
+
+
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACKS = "bootstrap5"
 
+
+
+
 LANGUAGE_CODE = 'en-us'
+
 TIME_ZONE = 'Asia/Karachi'
+
 USE_I18N = True
+
 USE_TZ = True
 
+
+
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static'
+]
+
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+
 
 STORAGES = {
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND":
+        "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+
 LOGIN_URL = '/login/'
+
 LOGIN_REDIRECT_URL = '/dashboard/'
+
 LOGOUT_REDIRECT_URL = '/login/'
 
-META_ACCESS_TOKEN = os.environ.get('META_ACCESS_TOKEN', '')
+
+
+META_ACCESS_TOKEN = os.environ.get(
+    'META_ACCESS_TOKEN',
+    ''
+)
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_HOST = 'smtp.gmail.com'
+
+EMAIL_PORT = 587
+
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = os.environ.get(
+    'EMAIL_HOST_USER'
+)
+
+EMAIL_HOST_PASSWORD = os.environ.get(
+    'EMAIL_HOST_PASSWORD'
+)
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
